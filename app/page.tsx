@@ -84,12 +84,14 @@ function parseCsv(text: string): SheetRow[] {
       const char = line[i];
       if (char === '"') {
         if (inQuotes && line[i + 1] === '"') {
-          current += '"'; i++;
+          current += '"';
+          i++;
         } else {
           inQuotes = !inQuotes;
         }
       } else if (char === "," && !inQuotes) {
-        result.push(current.trim()); current = "";
+        result.push(current.trim());
+        current = "";
       } else {
         current += char;
       }
@@ -284,6 +286,11 @@ export default function Page() {
             padding: 6px 10px !important;
           }
 
+          .table-wrap {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+          }
+
           .leaderboard-table {
             min-width: 900px !important;
           }
@@ -384,7 +391,8 @@ export default function Page() {
                     "GOLFER 6",
                     "TOTAL PURSE $",
                   ].map((header, index) => {
-                    const widths = ["4%", "22%", "10%", "10%", "10%", "10%", "10%", "10%", "14%"];                    return (
+                    const widths = ["5%", "21%", "10%", "10%", "10%", "10%", "10%", "10%", "14%"];
+                    return (
                       <th
                         key={header}
                         style={{
@@ -393,7 +401,7 @@ export default function Page() {
                           borderBottom: strongBorder,
                           borderLeft: index === 0 ? strongBorder : regularBorder,
                           borderRight: index === 8 ? strongBorder : regularBorder,
-                          padding: "10px 6px",
+                          padding: index === 0 ? "10px 2px" : "10px 6px",
                           fontWeight: 900,
                           fontSize: 12,
                           textAlign: "center",
@@ -401,7 +409,7 @@ export default function Page() {
                             ? {
                                 position: "sticky",
                                 left: 0,
-                                zIndex: 4,
+                                zIndex: 5,
                                 background: "#ffffff",
                                 boxShadow: "2px 0 0 #222",
                               }
@@ -409,8 +417,8 @@ export default function Page() {
                           ...(index === 1
                             ? {
                                 position: "sticky",
-                                left: "8%",
-                                zIndex: 3,
+                                left: "5%",
+                                zIndex: 4,
                                 background: "#ffffff",
                                 boxShadow: "2px 0 0 #222",
                               }
@@ -436,12 +444,12 @@ export default function Page() {
                           borderBottom: useStrongBottomBorder ? strongBorder : regularBorder,
                           borderLeft: strongBorder,
                           borderRight: regularBorder,
-                          padding: "10px 6px",
+                          padding: "10px 2px",
                           fontWeight: 900,
                           textAlign: "center",
                           position: "sticky",
                           left: 0,
-                          zIndex: 3,
+                          zIndex: 4,
                           background: "#ffffff",
                           boxShadow: "2px 0 0 #222",
                         }}
@@ -459,8 +467,8 @@ export default function Page() {
                           fontWeight: 900,
                           textAlign: "center",
                           position: "sticky",
-                          left: "8%",
-                          zIndex: 2,
+                          left: "5%",
+                          zIndex: 3,
                           background: "#ffffff",
                           boxShadow: "2px 0 0 #222",
                         }}
