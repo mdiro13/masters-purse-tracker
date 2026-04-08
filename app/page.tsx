@@ -96,6 +96,8 @@ function parseCsv(text: string): SheetRow[] {
     .filter(Boolean) as SheetRow[];
 }
 
+export const dynamic = "force-dynamic";
+
 export default function Page() {
   const [sheetRows, setSheetRows] = useState<SheetRow[]>([]);
   const [results, setResults] = useState<PlayerResult[]>([]);
