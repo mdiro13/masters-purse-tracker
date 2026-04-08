@@ -124,6 +124,7 @@ export default function Page() {
   const [updatedAt, setUpdatedAt] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [entrySearch, setEntrySearch] = useState("");
 
   const resultMap = useMemo(() => {
     const map = new Map<string, PlayerResult>();
@@ -165,6 +166,15 @@ export default function Page() {
       };
     });
   }, [sheetRows, resultMap, results]);
+
+  const filteredRanked = useMemo(() => {
+    const search = entrySearch.trim().toLowerCase();
+    if (!search) return ranked;
+
+    return ranked.filter((row) =>
+      row.entry.toLowerCase().includes(search)
+    );
+  }, [ranked, entrySearch]);
 
   async function loadSheet() {
     const response = await fetch(DEFAULT_SHEET_CSV_URL, { cache: "no-store" });
@@ -353,6 +363,24 @@ export default function Page() {
                   Updated: {updatedAt}
                 </span>
               ) : null}
+
+              <div style={{ marginTop: 10 }}>
+                <input
+                  type="text"
+                  value={entrySearch}
+                  onChange={(e) => setEntrySearch(e.target.value)}
+                  placeholder="Search entry name"
+                  style={{
+                    width: 220,
+                    maxWidth: "90%",
+                    padding: "8px 10px",
+                    fontSize: 12,
+                    border: "1px solid #222",
+                    outline: "none",
+                    textAlign: "center",
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -452,7 +480,7 @@ export default function Page() {
               </thead>
 
               <tbody>
-                {ranked.map((row, rowIndex) => {
+                {filteredRanked.map((row, rowIndex) => {
                   const useStrongBottomBorder = rowIndex === 0 || (rowIndex + 1) % 3 === 0;
 
                   return (
@@ -537,7 +565,7 @@ export default function Page() {
                   );
                 })}
 
-                {!ranked.length && !loading ? (
+                {!filteredRanked.length && !loading ? (
                   <tr>
                     <td
                       colSpan={9}
@@ -551,7 +579,7 @@ export default function Page() {
                         fontWeight: 900,
                       }}
                     >
-                      NO ROWS LOADED
+                      {ranked.length ? "NO MATCHING ENTRIES" : "NO ROWS LOADED"}
                     </td>
                   </tr>
                 ) : null}
