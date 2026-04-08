@@ -199,7 +199,7 @@ export default function Page() {
           }
 
           .masters-logo {
-            height: 42px !important;
+            height: 84px !important;
           }
 
           .header-controls {
@@ -243,7 +243,7 @@ export default function Page() {
           }
 
           .masters-logo {
-            height: 30px !important;
+            height: 60px !important;
           }
 
           .refresh-button {
