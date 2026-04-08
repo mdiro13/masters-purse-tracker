@@ -47,10 +47,28 @@ function parsePosition(pos: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-function payoutForPosition(pos: string, payouts: Record<number, number>) {
+function payoutForPosition(pos: string, payouts: Record<number, number>, results: PlayerResult[]) {
   const parsed = parsePosition(pos);
   if (!parsed) return 0;
-  return payouts[parsed] ?? 0;
+
+  const normalizedPos = pos.toUpperCase().trim();
+  const isTie = normalizedPos.startsWith("T");
+  if (!isTie) return payouts[parsed] ?? 0;
+
+  const tieCount = results.filter((player) => player.pos.toUpperCase().trim() === normalizedPos).length;
+  if (tieCount <= 1) return payouts[parsed] ?? 0;
+
+  const tiedPayouts: number[] = [];
+  for (let place = parsed; place < parsed + tieCount; place++) {
+    const payout = payouts[place];
+    if (typeof payout === "number") {
+      tiedPayouts.push(payout);
+    }
+  }
+
+  if (!tiedPayouts.length) return 0;
+
+  return Math.round(tiedPayouts.reduce((sum, value) => sum + value, 0) / tiedPayouts.length);
 }
 
 function parseCsv(text: string): SheetRow[] {
@@ -118,7 +136,7 @@ export default function Page() {
       const total = row.golfers.reduce((sum, golferName) => {
         const found = resultMap.get(normalizeName(golferName));
         const pos = found?.pos ?? "—";
-        return sum + payoutForPosition(pos, DEFAULT_PAYOUTS);
+        return sum + payoutForPosition(pos, DEFAULT_PAYOUTS, results);
       }, 0);
 
       return {
