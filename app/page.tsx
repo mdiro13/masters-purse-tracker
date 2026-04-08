@@ -208,6 +208,8 @@ export default function Page() {
 
   const strongBorder = "4px solid #222";
   const regularBorder = "1px solid #222";
+  const placeColWidth = 56;
+  const entryColWidth = 180;
 
   return (
     <>
@@ -391,7 +393,18 @@ export default function Page() {
                     "GOLFER 6",
                     "TOTAL PURSE $",
                   ].map((header, index) => {
-                    const widths = ["5%", "21%", "10%", "10%", "10%", "10%", "10%", "10%", "14%"];
+                    const widths = [
+                      `${placeColWidth}px`,
+                      `${entryColWidth}px`,
+                      "10%",
+                      "10%",
+                      "10%",
+                      "10%",
+                      "10%",
+                      "10%",
+                      "14%",
+                    ];
+
                     return (
                       <th
                         key={header}
@@ -412,15 +425,21 @@ export default function Page() {
                                 zIndex: 5,
                                 background: "#ffffff",
                                 boxShadow: "2px 0 0 #222",
+                                minWidth: placeColWidth,
+                                maxWidth: placeColWidth,
+                                width: placeColWidth,
                               }
                             : {}),
                           ...(index === 1
                             ? {
                                 position: "sticky",
-                                left: "5%",
+                                left: placeColWidth,
                                 zIndex: 4,
                                 background: "#ffffff",
                                 boxShadow: "2px 0 0 #222",
+                                minWidth: entryColWidth,
+                                maxWidth: entryColWidth,
+                                width: entryColWidth,
                               }
                             : {}),
                         }}
@@ -452,6 +471,9 @@ export default function Page() {
                           zIndex: 4,
                           background: "#ffffff",
                           boxShadow: "2px 0 0 #222",
+                          minWidth: placeColWidth,
+                          maxWidth: placeColWidth,
+                          width: placeColWidth,
                         }}
                       >
                         {row.place}
@@ -467,10 +489,13 @@ export default function Page() {
                           fontWeight: 900,
                           textAlign: "center",
                           position: "sticky",
-                          left: "5%",
+                          left: placeColWidth,
                           zIndex: 3,
                           background: "#ffffff",
                           boxShadow: "2px 0 0 #222",
+                          minWidth: entryColWidth,
+                          maxWidth: entryColWidth,
+                          width: entryColWidth,
                         }}
                       >
                         {row.entry}
