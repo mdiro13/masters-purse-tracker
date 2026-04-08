@@ -131,7 +131,7 @@ export default function Page() {
     return map;
   }, [results]);
 
-  const ranked = useMemo<RankedEntry[]>(() => {
+  const ranked = useMemo<(RankedEntry & { place: string })[]>(() => {
     const rows = sheetRows.map((row) => {
       const total = row.golfers.reduce((sum, golferName) => {
         const found = resultMap.get(normalizeName(golferName));
@@ -146,8 +146,23 @@ export default function Page() {
       };
     });
 
-    return rows.sort((a, b) => b.total - a.total);
-  }, [sheetRows, resultMap]);
+    const sorted = rows.sort((a, b) => b.total - a.total);
+
+    let currentPlace = 1;
+
+    return sorted.map((row, index) => {
+      if (index > 0 && row.total < sorted[index - 1].total) {
+        currentPlace = index + 1;
+      }
+
+      const isTie = sorted.filter((r) => r.total === row.total).length > 1;
+
+      return {
+        ...row,
+        place: isTie ? `T${currentPlace}` : `${currentPlace}`,
+      };
+    });
+  }, [sheetRows, resultMap, results]);
 
   async function loadSheet() {
     const response = await fetch(DEFAULT_SHEET_CSV_URL, { cache: "no-store" });
@@ -238,7 +253,7 @@ export default function Page() {
           }
 
           .leaderboard-table {
-            min-width: 900px !important;
+            min-width: 980px !important;
           }
         }
 
@@ -270,219 +285,249 @@ export default function Page() {
           }
 
           .leaderboard-table {
-            min-width: 820px !important;
+            min-width: 900px !important;
           }
         }
       `}</style>
       <main
-      className="page-shell"
-      style={{
-        minHeight: "100vh",
-        background: "#00563F",
-        padding: 24,
-        fontFamily: "Arial, Helvetica, sans-serif",
-      }}
-    >
-      <div
-        className="board"
+        className="page-shell"
         style={{
-          maxWidth: 1400,
-          margin: "24px auto",
-          background: "#ffffff",
-          border: "10px solid #ffffff",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+          minHeight: "100vh",
+          background: "#00563F",
+          padding: 24,
+          fontFamily: "Arial, Helvetica, sans-serif",
         }}
       >
-        <div className="board-header" style={{ position: "relative", padding: "16px 0" }}>
-          <div className="leaders-title" style={{ textAlign: "center", fontSize: 44, fontWeight: 900 }}>LEADERS</div>
+        <div
+          className="board"
+          style={{
+            maxWidth: 1400,
+            margin: "24px auto",
+            background: "#ffffff",
+            border: "10px solid #ffffff",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+          }}
+        >
+          <div className="board-header" style={{ position: "relative", padding: "16px 0" }}>
+            <div className="leaders-title" style={{ textAlign: "center", fontSize: 44, fontWeight: 900 }}>LEADERS</div>
 
-          <img
-            className="masters-logo"
-            src="/masters.png"
-            style={{
-              position: "absolute",
-              left: 0,
-              top: "50%",
-              transform: "translateY(-50%)",
-              height: 60,
-            }}
-          />
+            <img
+              className="masters-logo"
+              src="/masters.png"
+              style={{
+                position: "absolute",
+                left: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+                height: 60,
+              }}
+            />
 
-          <img
-            className="masters-logo"
-            src="/masters.png"
-            style={{
-              position: "absolute",
-              right: 0,
-              top: "50%",
-              transform: "translateY(-50%)",
-              height: 60,
-            }}
-          />
+            <img
+              className="masters-logo"
+              src="/masters.png"
+              style={{
+                position: "absolute",
+                right: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+                height: 60,
+              }}
+            />
 
-          <div className="header-controls" style={{ marginTop: 8, textAlign: "center" }}>
-            <button className="refresh-button" onClick={refreshAll} disabled={loading}>
-              {loading ? "REFRESHING..." : "REFRESH"}
-            </button>
-            {updatedAt ? (
-              <span className="updated-text" style={{ marginLeft: 12, fontSize: 12 }}>
-                Updated: {updatedAt}
-              </span>
-            ) : null}
+            <div className="header-controls" style={{ marginTop: 8, textAlign: "center" }}>
+              <button className="refresh-button" onClick={refreshAll} disabled={loading}>
+                {loading ? "REFRESHING..." : "REFRESH"}
+              </button>
+              {updatedAt ? (
+                <span className="updated-text" style={{ marginLeft: 12, fontSize: 12 }}>
+                  Updated: {updatedAt}
+                </span>
+              ) : null}
+            </div>
           </div>
-        </div>
 
-        {error ? (
-          <div
-            style={{
-              margin: 16,
-              padding: 12,
-              border: "2px solid #b42318",
-              color: "#b42318",
-              fontWeight: 400,
-            }}
-          >
-            {error}
-          </div>
-        ) : null}
+          {error ? (
+            <div
+              style={{
+                margin: 16,
+                padding: 12,
+                border: "2px solid #b42318",
+                color: "#b42318",
+                fontWeight: 400,
+              }}
+            >
+              {error}
+            </div>
+          ) : null}
 
-        <div className="table-wrap" style={{ overflowX: "auto" }}>
-          <table
-            className="leaderboard-table"
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              tableLayout: "fixed",
-              
-              background: "#ffffff",
-            }}
-          >
-            <thead>
-              <tr>
-                {[
-                  "ENTRY NAME",
-                  "GOLFER 1",
-                  "GOLFER 2",
-                  "GOLFER 3",
-                  "GOLFER 4",
-                  "GOLFER 5",
-                  "GOLFER 6",
-                  "TOTAL PURSE $",
-                ].map((header, index) => {
-                  const widths = ["22%","11%","11%","11%","11%","11%","11%","12%"];
+          <div className="table-wrap" style={{ overflowX: "auto" }}>
+            <table
+              className="leaderboard-table"
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                tableLayout: "fixed",
+                background: "#ffffff",
+              }}
+            >
+              <thead>
+                <tr>
+                  {[
+                    "PLACE",
+                    "ENTRY NAME",
+                    "GOLFER 1",
+                    "GOLFER 2",
+                    "GOLFER 3",
+                    "GOLFER 4",
+                    "GOLFER 5",
+                    "GOLFER 6",
+                    "TOTAL PURSE $",
+                  ].map((header, index) => {
+                    const widths = ["8%", "18%", "10%", "10%", "10%", "10%", "10%", "10%", "14%"];
+                    return (
+                      <th
+                        key={header}
+                        style={{
+                          width: widths[index],
+                          borderTop: strongBorder,
+                          borderBottom: strongBorder,
+                          borderLeft: index === 0 ? strongBorder : regularBorder,
+                          borderRight: index === 8 ? strongBorder : regularBorder,
+                          padding: "10px 6px",
+                          fontWeight: 900,
+                          fontSize: 12,
+                          textAlign: "center",
+                          ...(index === 0
+                            ? {
+                                position: "sticky",
+                                left: 0,
+                                zIndex: 4,
+                                background: "#ffffff",
+                                boxShadow: "2px 0 0 #222",
+                              }
+                            : {}),
+                          ...(index === 1
+                            ? {
+                                position: "sticky",
+                                left: "8%",
+                                zIndex: 3,
+                                background: "#ffffff",
+                                boxShadow: "2px 0 0 #222",
+                              }
+                            : {}),
+                        }}
+                      >
+                        {header}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+
+              <tbody>
+                {ranked.map((row, rowIndex) => {
+                  const useStrongBottomBorder = rowIndex === 0 || (rowIndex + 1) % 3 === 0;
+
                   return (
-                    <th
-                      key={header}
-                      style={{
-                        width: widths[index],
-                        borderTop: strongBorder,
-                        borderBottom: strongBorder,
-                        borderLeft: index === 0 ? strongBorder : regularBorder,
-                        borderRight: index === 7 ? strongBorder : regularBorder,
-                        padding: "10px 6px",
-                        fontWeight: 900,
-                        fontSize: 12,
-                        textAlign: "center",
-                        ...(index === 0 ? {
+                    <tr key={`${row.entry}-${rowIndex}`}>
+                      <td
+                        style={{
+                          borderTop: regularBorder,
+                          borderBottom: useStrongBottomBorder ? strongBorder : regularBorder,
+                          borderLeft: strongBorder,
+                          borderRight: regularBorder,
+                          padding: "10px 6px",
+                          fontWeight: 900,
+                          textAlign: "center",
                           position: "sticky",
                           left: 0,
                           zIndex: 3,
                           background: "#ffffff",
-                          boxShadow: "2px 0 0 #222"
-                        } : {})
-                      }}
-                    >
-                      {header}
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
+                          boxShadow: "2px 0 0 #222",
+                        }}
+                      >
+                        {row.place}
+                      </td>
 
-            <tbody>
-              {ranked.map((row, rowIndex) => {
-                const useStrongBottomBorder = rowIndex === 0 || (rowIndex + 1) % 3 === 0;
-
-                return (
-                  <tr key={`${row.entry}-${rowIndex}`}>
-                    <td
-                      style={{
-                        borderTop: regularBorder,
-                        borderBottom: useStrongBottomBorder ? strongBorder : regularBorder,
-                        borderLeft: strongBorder,
-                        borderRight: regularBorder,
-                        padding: "10px 6px",
-                        fontWeight: 900,
-                        textAlign: "center",
-                        position: "sticky",
-                        left: 0,
-                        zIndex: 2,
-                        background: "#ffffff",
-                        boxShadow: "2px 0 0 #222"
-                      }}
-                    >
-                      {row.entry}
-                    </td>
-
-                    {row.golfers.map((golfer, golferIndex) => (
                       <td
-                        key={`${row.entry}-${golferIndex}`}
                         style={{
                           borderTop: regularBorder,
                           borderBottom: useStrongBottomBorder ? strongBorder : regularBorder,
                           borderLeft: regularBorder,
                           borderRight: regularBorder,
                           padding: "10px 6px",
+                          fontWeight: 900,
                           textAlign: "center",
-                          fontSize: 13,
-                          fontWeight: 400,
+                          position: "sticky",
+                          left: "8%",
+                          zIndex: 2,
+                          background: "#ffffff",
+                          boxShadow: "2px 0 0 #222",
                         }}
                       >
-                        {golfer}
+                        {row.entry}
                       </td>
-                    ))}
 
+                      {row.golfers.map((golfer, golferIndex) => (
+                        <td
+                          key={`${row.entry}-${golferIndex}`}
+                          style={{
+                            borderTop: regularBorder,
+                            borderBottom: useStrongBottomBorder ? strongBorder : regularBorder,
+                            borderLeft: regularBorder,
+                            borderRight: regularBorder,
+                            padding: "10px 6px",
+                            textAlign: "center",
+                            fontSize: 13,
+                            fontWeight: 400,
+                          }}
+                        >
+                          {golfer}
+                        </td>
+                      ))}
+
+                      <td
+                        style={{
+                          borderTop: regularBorder,
+                          borderBottom: useStrongBottomBorder ? strongBorder : regularBorder,
+                          borderLeft: regularBorder,
+                          borderRight: strongBorder,
+                          padding: "10px 6px",
+                          textAlign: "center",
+                          fontWeight: 900,
+                          fontSize: 14,
+                        }}
+                      >
+                        ${row.total.toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {!ranked.length && !loading ? (
+                  <tr>
                     <td
+                      colSpan={9}
                       style={{
-                        borderTop: regularBorder,
-                        borderBottom: useStrongBottomBorder ? strongBorder : regularBorder,
-                        borderLeft: regularBorder,
+                        borderTop: strongBorder,
+                        borderBottom: strongBorder,
+                        borderLeft: strongBorder,
                         borderRight: strongBorder,
-                        padding: "10px 6px",
+                        padding: 20,
                         textAlign: "center",
                         fontWeight: 900,
-                        fontSize: 14,
                       }}
                     >
-                      ${row.total.toLocaleString()}
-                      </td>
+                      NO ROWS LOADED
+                    </td>
                   </tr>
-                );
-              })}
-
-              {!ranked.length && !loading ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    style={{
-                      borderTop: strongBorder,
-                      borderBottom: strongBorder,
-                      borderLeft: strongBorder,
-                      borderRight: strongBorder,
-                      padding: 20,
-                      textAlign: "center",
-                      fontWeight: 900,
-                    }}
-                  >
-                    NO ROWS LOADED
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
     </>
   );
 }
