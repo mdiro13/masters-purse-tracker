@@ -365,6 +365,13 @@ export default function Page() {
                         fontWeight: 900,
                         fontSize: 12,
                         textAlign: "center",
+                        ...(index === 0 ? {
+                          position: "sticky",
+                          left: 0,
+                          zIndex: 3,
+                          background: "#ffffff",
+                          boxShadow: "2px 0 0 #222"
+                        } : {})
                       }}
                     >
                       {header}
@@ -389,6 +396,11 @@ export default function Page() {
                         padding: "10px 6px",
                         fontWeight: 900,
                         textAlign: "center",
+                        position: "sticky",
+                        left: 0,
+                        zIndex: 2,
+                        background: "#ffffff",
+                        boxShadow: "2px 0 0 #222"
                       }}
                     >
                       {row.entry}
@@ -425,7 +437,7 @@ export default function Page() {
                       }}
                     >
                       ${row.total.toLocaleString()}
-                    </td>
+                      </td>
                   </tr>
                 );
               })}
