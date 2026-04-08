@@ -384,8 +384,7 @@ export default function Page() {
                     "GOLFER 6",
                     "TOTAL PURSE $",
                   ].map((header, index) => {
-                    const widths = ["8%", "18%", "10%", "10%", "10%", "10%", "10%", "10%", "14%"];
-                    return (
+                    const widths = ["4%", "22%", "10%", "10%", "10%", "10%", "10%", "10%", "14%"];                    return (
                       <th
                         key={header}
                         style={{
