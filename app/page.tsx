@@ -55,7 +55,7 @@ function payoutForPosition(pos: string, payouts: Record<number, number>, results
   const isTie = normalizedPos.startsWith("T");
   if (!isTie) return payouts[parsed] ?? 0;
 
-  const tieCount = results.filter((player) => player.pos.toUpperCase().trim() === normalizedPos).length;
+  const tieCount = results.filter((player) => parsePosition(player.pos) === parsed).length;
   if (tieCount <= 1) return payouts[parsed] ?? 0;
 
   const tiedPayouts: number[] = [];
@@ -68,7 +68,9 @@ function payoutForPosition(pos: string, payouts: Record<number, number>, results
 
   if (!tiedPayouts.length) return 0;
 
-  return Math.round(tiedPayouts.reduce((sum, value) => sum + value, 0) / tiedPayouts.length);
+  return Math.round(
+    tiedPayouts.reduce((sum, value) => sum + value, 0) / tiedPayouts.length
+  );
 }
 
 function parseCsv(text: string): SheetRow[] {
