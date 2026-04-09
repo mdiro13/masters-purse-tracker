@@ -25,6 +25,12 @@ function normalizeName(name: string) {
     .trim();
 }
 
+function normalizePos(pos: string) {
+  const cleaned = cleanText(pos).toUpperCase().trim();
+  if (/^(T?\d+|MC|CUT|WD|DQ|DNS)$/.test(cleaned)) return cleaned;
+  return null;
+}
+
 function dedupePlayers(players: PlayerResult[]) {
   const seen = new Map<string, PlayerResult>();
 
@@ -38,33 +44,6 @@ function dedupePlayers(players: PlayerResult[]) {
   return Array.from(seen.values());
 }
 
-function extractPositionDirectlyLeftOfAnchor(row: string, anchorIndex: number): string | null {
-  const leftHtml = row.slice(0, anchorIndex);
-
-  const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
-  const cells: string[] = [];
-  let match: RegExpExecArray | null;
-
-  while ((match = cellRegex.exec(leftHtml)) !== null) {
-    cells.push(match[1]);
-  }
-
-  for (let i = cells.length - 1; i >= 0; i--) {
-    const text = cleanText(cells[i]).toUpperCase();
-    if (/^(T?\d+|MC|CUT|WD|DQ|DNS)$/.test(text)) {
-      return text;
-    }
-  }
-
-  const strippedLeft = cleanText(leftHtml).toUpperCase();
-  const tokens = strippedLeft.match(/\b(T?\d+|MC|CUT|WD|DQ|DNS)\b/g);
-  if (tokens?.length) {
-    return tokens[tokens.length - 1];
-  }
-
-  return null;
-}
-
 function parseEspnHtml(html: string): PlayerResult[] {
   const players: PlayerResult[] = [];
   const rowRegex = /<tr[\s\S]*?<\/tr>/gi;
@@ -73,18 +52,43 @@ function parseEspnHtml(html: string): PlayerResult[] {
   for (const row of rows) {
     if (!/\/golf\/player\/_\/id\//i.test(row)) continue;
 
-    const nameRegex =
-      /<a[^>]+href="[^"]*\/golf\/player\/_\/id\/\d+\/[^"]*"[^>]*>([\s\S]*?)<\/a>/i;
-    const nameMatch = nameRegex.exec(row);
-    if (!nameMatch?.[1] || nameMatch.index == null) continue;
+    const cellRegex = /<t[dh][^>]*>[\s\S]*?<\/t[dh]>/gi;
+    const cells = row.match(cellRegex) ?? [];
+    if (!cells.length) continue;
 
-    const name = normalizeName(nameMatch[1]);
-    if (!name || name.length < 3) continue;
+    let playerName: string | null = null;
+    let playerCellIndex = -1;
 
-    const pos = extractPositionDirectlyLeftOfAnchor(row, nameMatch.index);
+    for (let i = 0; i < cells.length; i++) {
+      const anchorMatch = cells[i].match(
+        /<a[^>]+href="[^"]*\/golf\/player\/_\/id\/\d+\/[^"]*"[^>]*>([\s\S]*?)<\/a>/i
+      );
+
+      if (anchorMatch?.[1]) {
+        playerName = normalizeName(anchorMatch[1]);
+        playerCellIndex = i;
+        break;
+      }
+    }
+
+    if (!playerName || playerCellIndex === -1) continue;
+
+    let pos: string | null = null;
+
+    for (let i = playerCellIndex - 1; i >= 0; i--) {
+      const candidate = normalizePos(cells[i]);
+      if (candidate) {
+        pos = candidate;
+        break;
+      }
+    }
+
     if (!pos) continue;
 
-    players.push({ name, pos });
+    players.push({
+      name: playerName,
+      pos,
+    });
   }
 
   return dedupePlayers(players);
