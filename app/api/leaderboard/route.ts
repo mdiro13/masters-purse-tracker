@@ -5,16 +5,12 @@ type PlayerResult = {
   pos: string;
 };
 
-const ESPN_MASTERS_URL =
-  "https://www.espn.com/golf/leaderboard/_/week/3/year/2026/seasontype/2";
+const GOOGLE_SCORES_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTq0BaspphCKf0LVA_vq-MQN3qARbvod0o8XRkS2IFEGEv4IqIWHVjhuQPP99Lv4wK0wArTMKlG9jbH/pub?output=csv";
 
 function cleanText(value: string) {
   return value
-    .replace(/&amp;/g, "&")
-    .replace(/&#x27;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&nbsp;/g, " ")
-    .replace(/<[^>]*>/g, " ")
+    .replace(/\u00a0/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -26,9 +22,36 @@ function normalizeName(name: string) {
 }
 
 function normalizePos(pos: string) {
-  const cleaned = cleanText(pos).toUpperCase().trim();
-  if (/^(T?\d+|MC|CUT|WD|DQ|DNS)$/.test(cleaned)) return cleaned;
+  const cleaned = cleanText(pos).toUpperCase();
+  if (/^(T?\d+|MC|CUT|WD|DQ|DNS|-)$/.test(cleaned)) return cleaned;
   return null;
+}
+
+function parseCsvLine(line: string) {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current);
+  return result.map((cell) => cell.trim());
 }
 
 function dedupePlayers(players: PlayerResult[]) {
@@ -44,51 +67,46 @@ function dedupePlayers(players: PlayerResult[]) {
   return Array.from(seen.values());
 }
 
-function parseEspnHtml(html: string): PlayerResult[] {
+function parseScoresCsv(text: string): PlayerResult[] {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  const rows = lines.map(parseCsvLine);
+
   const players: PlayerResult[] = [];
-  const rowRegex = /<tr[\s\S]*?<\/tr>/gi;
-  const rows = html.match(rowRegex) ?? [];
 
   for (const row of rows) {
-    if (!/\/golf\/player\/_\/id\//i.test(row)) continue;
-
-    const cellRegex = /<t[dh][^>]*>[\s\S]*?<\/t[dh]>/gi;
-    const cells = row.match(cellRegex) ?? [];
-    if (!cells.length) continue;
-
-    let playerName: string | null = null;
-    let playerCellIndex = -1;
-
-    for (let i = 0; i < cells.length; i++) {
-      const anchorMatch = cells[i].match(
-        /<a[^>]+href="[^"]*\/golf\/player\/_\/id\/\d+\/[^"]*"[^>]*>([\s\S]*?)<\/a>/i
-      );
-
-      if (anchorMatch?.[1]) {
-        playerName = normalizeName(anchorMatch[1]);
-        playerCellIndex = i;
-        break;
-      }
-    }
-
-    if (!playerName || playerCellIndex === -1) continue;
+    if (!row.length) continue;
 
     let pos: string | null = null;
+    let name: string | null = null;
 
-    for (let i = playerCellIndex - 1; i >= 0; i--) {
-      const candidate = normalizePos(cells[i]);
-      if (candidate) {
-        pos = candidate;
-        break;
+    for (let i = 0; i < row.length; i++) {
+      const cell = cleanText(row[i]);
+      const maybePos = normalizePos(cell);
+
+      if (!pos && maybePos && maybePos !== "-") {
+        pos = maybePos;
+      }
+
+      if (!name) {
+        const maybeName = normalizeName(cell);
+
+        const looksLikeName =
+          maybeName.length >= 3 &&
+          /[A-Za-z]/.test(maybeName) &&
+          !/^(POS|PLAYER|SCORE|TODAY|THRU|R1|R2|R3|R4|TOT|COUNTRY|MASTERS SCORES|SHEET1)$/i.test(
+            maybeName
+          ) &&
+          !/^(T?\d+|MC|CUT|WD|DQ|DNS|-)$/.test(maybeName.toUpperCase());
+
+        if (looksLikeName) {
+          name = maybeName;
+        }
       }
     }
 
-    if (!pos) continue;
+    if (!pos || !name) continue;
 
-    players.push({
-      name: playerName,
-      pos,
-    });
+    players.push({ name, pos });
   }
 
   return dedupePlayers(players);
@@ -96,18 +114,17 @@ function parseEspnHtml(html: string): PlayerResult[] {
 
 export async function GET() {
   try {
-    const response = await fetch(ESPN_MASTERS_URL, {
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        Accept: "text/html,application/xhtml+xml",
-      },
+    const response = await fetch(GOOGLE_SCORES_CSV_URL, {
       cache: "no-store",
+      headers: {
+        Accept: "text/csv,text/plain,*/*",
+      },
     });
 
     if (!response.ok) {
       return NextResponse.json(
         {
-          error: `ESPN request failed with status ${response.status}`,
+          error: `Google Sheet request failed with status ${response.status}`,
           players: [],
           updatedAt: new Date().toISOString(),
         },
@@ -115,13 +132,13 @@ export async function GET() {
       );
     }
 
-    const html = await response.text();
-    const players = parseEspnHtml(html);
+    const csvText = await response.text();
+    const players = parseScoresCsv(csvText);
 
     if (!players.length) {
       return NextResponse.json(
         {
-          error: "No players parsed from ESPN page.",
+          error: "No players parsed from Google Sheet CSV.",
           players: [],
           updatedAt: new Date().toISOString(),
         },
@@ -131,8 +148,10 @@ export async function GET() {
 
     return NextResponse.json({
       players,
+      playerCount: players.length,
+      sample: players.slice(0, 40),
       updatedAt: new Date().toISOString(),
-      source: "ESPN Masters leaderboard",
+      source: "Google Sheet leaderboard",
     });
   } catch (error) {
     return NextResponse.json(
