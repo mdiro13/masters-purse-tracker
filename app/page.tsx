@@ -35,42 +35,57 @@ const DEFAULT_SHEET_CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vS_eSyjhk0wD7A2VjZM3-ggJmwY9Qeu_pGqPMr3bUaGxfWWBa_iBLckvF-bz-tgApcSuu-Tb9LCnTkp/pub?output=csv";
 
 function normalizeName(name: string) {
-  return name.toLowerCase().replace(/\./g, "").replace(/,/g, "").replace(/\s+/g, " ").trim();
+  return name
+    .toLowerCase()
+    .replace(/\./g, "")
+    .replace(/,/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function parsePosition(pos: string): number | null {
   if (!pos) return null;
   const upper = pos.toUpperCase().trim();
-  if (["MC", "CUT", "WD", "DQ", "DNS"].includes(upper)) return null;
+  if (["MC", "CUT", "WD", "DQ", "DNS", "-"].includes(upper)) return null;
   const numeric = upper.replace(/^T/, "");
   const value = Number.parseInt(numeric, 10);
   return Number.isFinite(value) ? value : null;
 }
 
-function payoutForPosition(pos: string, payouts: Record<number, number>, results: PlayerResult[]) {
+function payoutForPosition(
+  pos: string,
+  payouts: Record<number, number>,
+  results: PlayerResult[]
+) {
   const parsed = parsePosition(pos);
   if (!parsed) return 0;
 
-  const normalizedPos = pos.toUpperCase().trim();
-  const isTie = normalizedPos.startsWith("T");
-  if (!isTie) return payouts[parsed] ?? 0;
+  const normalized = pos.toUpperCase().trim();
 
-  const tieCount = results.filter((player) => parsePosition(player.pos) === parsed).length;
+  if (!normalized.startsWith("T")) {
+    return payouts[parsed] ?? 0;
+  }
+
+  const tiePlayers = results.filter(
+    (player) => player.pos.toUpperCase().trim() === normalized
+  );
+
+  const tieCount = tiePlayers.length;
+
   if (tieCount <= 1) return payouts[parsed] ?? 0;
 
-  const tiedPayouts: number[] = [];
-  for (let place = parsed; place < parsed + tieCount; place++) {
-    const payout = payouts[place];
+  let total = 0;
+  let count = 0;
+
+  for (let i = 0; i < tieCount; i++) {
+    const payout = payouts[parsed + i];
     if (typeof payout === "number") {
-      tiedPayouts.push(payout);
+      total += payout;
+      count++;
     }
   }
 
-  if (!tiedPayouts.length) return 0;
-
-  return Math.round(
-    tiedPayouts.reduce((sum, value) => sum + value, 0) / tiedPayouts.length
-  );
+  return count ? Math.round(total / count) : 0;
 }
 
 function parseCsv(text: string): SheetRow[] {
@@ -98,6 +113,7 @@ function parseCsv(text: string): SheetRow[] {
         current += char;
       }
     }
+
     result.push(current.trim());
     return result;
   };
@@ -109,7 +125,8 @@ function parseCsv(text: string): SheetRow[] {
       const entry = cells[0]?.trim();
       const golfers = cells.slice(1, 7).map((c) => c?.trim()).filter(Boolean) as string[];
 
-      const looksLikeHeader = idx === 0 && ["entry", "entry name", "name"].includes(normalizeName(entry || ""));
+      const looksLikeHeader =
+        idx === 0 && ["entry", "entry name", "name"].includes(normalizeName(entry || ""));
       if (looksLikeHeader) return null;
       if (!entry || golfers.length === 0) return null;
 
@@ -172,7 +189,6 @@ export default function Page() {
   const filteredRanked = useMemo(() => {
     const search = entrySearch.trim().toLowerCase();
     if (!search) return ranked;
-
     return ranked.filter((row) => row.entry.toLowerCase().includes(search));
   }, [ranked, entrySearch]);
 
@@ -308,6 +324,7 @@ export default function Page() {
           }
         }
       `}</style>
+
       <main
         className="page-shell"
         style={{
@@ -328,7 +345,12 @@ export default function Page() {
           }}
         >
           <div className="board-header" style={{ position: "relative", padding: "16px 0" }}>
-            <div className="leaders-title" style={{ textAlign: "center", fontSize: 44, fontWeight: 900 }}>LEADERS</div>
+            <div
+              className="leaders-title"
+              style={{ textAlign: "center", fontSize: 44, fontWeight: 900 }}
+            >
+              LEADERS
+            </div>
 
             <img
               className="masters-logo"
@@ -358,6 +380,7 @@ export default function Page() {
               <button className="refresh-button" onClick={refreshAll} disabled={loading}>
                 {loading ? "REFRESHING..." : "REFRESH"}
               </button>
+
               {updatedAt ? (
                 <span className="updated-text" style={{ marginLeft: 12, fontSize: 12 }}>
                   Updated: {updatedAt}
