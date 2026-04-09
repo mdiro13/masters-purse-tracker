@@ -38,37 +38,53 @@ function dedupePlayers(players: PlayerResult[]) {
   return Array.from(seen.values());
 }
 
+function extractPositionDirectlyLeftOfAnchor(row: string, anchorIndex: number): string | null {
+  const leftHtml = row.slice(0, anchorIndex);
+
+  const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+  const cells: string[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = cellRegex.exec(leftHtml)) !== null) {
+    cells.push(match[1]);
+  }
+
+  for (let i = cells.length - 1; i >= 0; i--) {
+    const text = cleanText(cells[i]).toUpperCase();
+    if (/^(T?\d+|MC|CUT|WD|DQ|DNS)$/.test(text)) {
+      return text;
+    }
+  }
+
+  const strippedLeft = cleanText(leftHtml).toUpperCase();
+  const tokens = strippedLeft.match(/\b(T?\d+|MC|CUT|WD|DQ|DNS)\b/g);
+  if (tokens?.length) {
+    return tokens[tokens.length - 1];
+  }
+
+  return null;
+}
+
 function parseEspnHtml(html: string): PlayerResult[] {
   const players: PlayerResult[] = [];
-
-  // Grab table rows instead of free-floating player links
   const rowRegex = /<tr[\s\S]*?<\/tr>/gi;
   const rows = html.match(rowRegex) ?? [];
 
   for (const row of rows) {
-    // Must contain a golfer profile link
     if (!/\/golf\/player\/_\/id\//i.test(row)) continue;
 
-    const nameMatch = row.match(
-      /<a[^>]+href="[^"]*\/golf\/player\/_\/id\/\d+\/[^"]*"[^>]*>([\s\S]*?)<\/a>/i
-    );
-    if (!nameMatch?.[1]) continue;
+    const nameRegex =
+      /<a[^>]+href="[^"]*\/golf\/player\/_\/id\/\d+\/[^"]*"[^>]*>([\s\S]*?)<\/a>/i;
+    const nameMatch = nameRegex.exec(row);
+    if (!nameMatch?.[1] || nameMatch.index == null) continue;
 
     const name = normalizeName(nameMatch[1]);
     if (!name || name.length < 3) continue;
 
-    // Position should come from the same row only
-    const rowText = cleanText(row);
+    const pos = extractPositionDirectlyLeftOfAnchor(row, nameMatch.index);
+    if (!pos) continue;
 
-    // Look for a valid leaderboard position near the start of the row
-    const posMatch = rowText.match(/\b(T?\d+|MC|CUT|WD|DQ|DNS)\b/i);
-    if (!posMatch?.[1]) continue;
-
-    const pos = posMatch[1].toUpperCase();
-
-    if (/^(T?\d+|MC|CUT|WD|DQ|DNS)$/.test(pos)) {
-      players.push({ name, pos });
-    }
+    players.push({ name, pos });
   }
 
   return dedupePlayers(players);
