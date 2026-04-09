@@ -41,50 +41,37 @@ function dedupePlayers(players: PlayerResult[]) {
 function parseEspnHtml(html: string): PlayerResult[] {
   const players: PlayerResult[] = [];
 
-  // ESPN golf leaderboard pages usually contain golfer profile links like:
-  // /golf/player/_/id/3470/rory-mcilroy
-  // We grab nearby text and try to infer position from the surrounding chunk.
-  const playerRegex =
-    /<a[^>]+href="[^"]*\/golf\/player\/_\/id\/\d+\/[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+  // Grab table rows instead of free-floating player links
+  const rowRegex = /<tr[\s\S]*?<\/tr>/gi;
+  const rows = html.match(rowRegex) ?? [];
 
-  let match: RegExpExecArray | null;
+  for (const row of rows) {
+    // Must contain a golfer profile link
+    if (!/\/golf\/player\/_\/id\//i.test(row)) continue;
 
-  while ((match = playerRegex.exec(html)) !== null) {
-    const rawAnchor = match[0];
-    const rawName = match[1];
-    const name = normalizeName(rawName);
+    const nameMatch = row.match(
+      /<a[^>]+href="[^"]*\/golf\/player\/_\/id\/\d+\/[^"]*"[^>]*>([\s\S]*?)<\/a>/i
+    );
+    if (!nameMatch?.[1]) continue;
 
+    const name = normalizeName(nameMatch[1]);
     if (!name || name.length < 3) continue;
 
-    // Look around the player link for a position label.
-    const start = Math.max(0, match.index - 500);
-    const end = Math.min(html.length, match.index + rawAnchor.length + 500);
-    const chunk = html.slice(start, end);
+    // Position should come from the same row only
+    const rowText = cleanText(row);
 
-    // Try a few likely patterns
-    const posPatterns = [
-      /"position"[^>]*>\s*([^<]+)\s*</i,
-      /"pos"[^>]*>\s*([^<]+)\s*</i,
-      /\b(T?\d+|MC|CUT|WD|DQ|DNS)\b/,
-    ];
+    // Look for a valid leaderboard position near the start of the row
+    const posMatch = rowText.match(/\b(T?\d+|MC|CUT|WD|DQ|DNS)\b/i);
+    if (!posMatch?.[1]) continue;
 
-    let pos = "—";
+    const pos = posMatch[1].toUpperCase();
 
-    for (const pattern of posPatterns) {
-      const posMatch = chunk.match(pattern);
-      if (posMatch?.[1]) {
-        const candidate = cleanText(posMatch[1]).toUpperCase();
-        if (/^(T?\d+|MC|CUT|WD|DQ|DNS)$/.test(candidate)) {
-          pos = candidate;
-          break;
-        }
-      }
+    if (/^(T?\d+|MC|CUT|WD|DQ|DNS)$/.test(pos)) {
+      players.push({ name, pos });
     }
-
-    players.push({ name, pos });
   }
 
-  return dedupePlayers(players).filter((p) => p.pos !== "—");
+  return dedupePlayers(players);
 }
 
 export async function GET() {
