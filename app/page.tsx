@@ -171,9 +171,7 @@ export default function Page() {
     const search = entrySearch.trim().toLowerCase();
     if (!search) return ranked;
 
-    return ranked.filter((row) =>
-      row.entry.toLowerCase().includes(search)
-    );
+    return ranked.filter((row) => row.entry.toLowerCase().includes(search));
   }, [ranked, entrySearch]);
 
   async function loadSheet() {
@@ -267,7 +265,7 @@ export default function Page() {
           }
 
           .leaderboard-table {
-            min-width: 980px !important;
+            min-width: 1180px !important;
           }
         }
 
@@ -304,7 +302,7 @@ export default function Page() {
           }
 
           .leaderboard-table {
-            min-width: 900px !important;
+            min-width: 1180px !important;
           }
         }
       `}</style>
@@ -541,6 +539,9 @@ export default function Page() {
                             textAlign: "center",
                             fontSize: 13,
                             fontWeight: 400,
+                            whiteSpace: "normal",
+                            wordBreak: "break-word",
+                            lineHeight: 1.15,
                           }}
                         >
                           {golfer}
